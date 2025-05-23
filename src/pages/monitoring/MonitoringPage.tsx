@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Circle, Popup, useMap, useMapEvents, Marker, Polyline } from 'react-leaflet';
-import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation, Plane, Battery, X } from 'lucide-react';
+import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation, Plane, Battery, X, Wifi, Compass, Thermometer } from 'lucide-react';
 import { NoFlyZone, Drone } from '../../types';
 import { useNotifications } from '../../context/NotificationsContext';
 import WeatherWidget from '../../components/weather/WeatherWidget';
@@ -11,7 +11,7 @@ import 'leaflet/dist/leaflet.css';
 const mockDrones: Drone[] = [
   {
     id: '1',
-    name: 'Drone 1',
+    name: 'DJI Mavic Air 2',
     serialNumber: 'DJI-001',
     model: 'Mavic Air 2',
     status: 'active',
@@ -24,7 +24,7 @@ const mockDrones: Drone[] = [
   },
   {
     id: '2',
-    name: 'Drone 2',
+    name: 'DJI Mavic 3',
     serialNumber: 'DJI-002',
     model: 'Mavic 3',
     status: 'active',
@@ -144,6 +144,56 @@ const MapLegend: React.FC<{ isVisible: boolean; onClose: () => void }> = ({ isVi
   );
 };
 
+// Layer controls component
+const LayerControls: React.FC<{
+  mapLayers: {
+    noFlyZones: boolean;
+    weather: boolean;
+    flightPaths: boolean;
+  };
+  toggleMapLayer: (layer: string) => void;
+}> = ({ mapLayers, toggleMapLayer }) => {
+  return (
+    <div className="absolute top-2 right-2 space-y-2 z-[1000]">
+      <button
+        onClick={() => toggleMapLayer('noFlyZones')}
+        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
+          mapLayers.noFlyZones
+            ? 'bg-primary text-white shadow-lg shadow-primary/50'
+            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <AlertTriangle className="w-4 h-4 mr-2" />
+        <span className="text-sm">Запретные зоны</span>
+      </button>
+      
+      <button
+        onClick={() => toggleMapLayer('weather')}
+        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
+          mapLayers.weather
+            ? 'bg-primary text-white shadow-lg shadow-primary/50'
+            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <CloudRain className="w-4 h-4 mr-2" />
+        <span className="text-sm">Погода</span>
+      </button>
+      
+      <button
+        onClick={() => toggleMapLayer('flightPaths')}
+        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
+          mapLayers.flightPaths
+            ? 'bg-primary text-white shadow-lg shadow-primary/50'
+            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <Navigation className="w-4 h-4 mr-2" />
+        <span className="text-sm">Траектория</span>
+      </button>
+    </div>
+  );
+};
+
 const MonitoringPage: React.FC = () => {
   const [activeDrones, setActiveDrones] = useState<Drone[]>(mockDrones);
   const [selectedDrone, setSelectedDrone] = useState<Drone | null>(null);
@@ -204,7 +254,7 @@ const MonitoringPage: React.FC = () => {
   const toggleMapLayer = (layer: keyof typeof mapLayers) => {
     setMapLayers(prev => ({
       ...prev,
-      [layer]: !prev[layer],
+      [layer]: !prev[layer]
     }));
   };
 
@@ -285,6 +335,7 @@ const MonitoringPage: React.FC = () => {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
             
+            <LayerControls mapLayers={mapLayers} toggleMapLayer={toggleMapLayer} />
             <MapCoordinates />
             <MapLegend isVisible={isLegendVisible} onClose={() => setIsLegendVisible(false)} />
             
@@ -316,6 +367,9 @@ const MonitoringPage: React.FC = () => {
                   key={drone.id}
                   position={[drone.location.latitude, drone.location.longitude]}
                   icon={createDroneIcon(drone.status, drone.batteryLevel || 0)}
+                  eventHandlers={{
+                    click: () => handleDroneSelect(drone)
+                  }}
                 >
                   <Popup>
                     <div>
@@ -350,43 +404,96 @@ const MonitoringPage: React.FC = () => {
         <div className="glass-card p-4">
           {selectedDrone ? (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Информация о дроне</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Название</p>
-                  <p className="font-medium">{selectedDrone.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Модель</p>
-                  <p className="font-medium">{selectedDrone.model}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Серийный номер</p>
-                  <p className="font-medium">{selectedDrone.serialNumber}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Заряд батареи</p>
-                  <p className="font-medium">{selectedDrone.batteryLevel}%</p>
-                </div>
-                {selectedDrone.location && (
-                  <>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Информация о дроне</h3>
+                <span className="px-2 py-1 text-xs rounded-full bg-success/20 text-success">
+                  В полете
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <Plane className="w-5 h-5 text-primary mr-2" />
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Высота</p>
-                      <p className="font-medium">{Math.round(selectedDrone.location.altitude)} м</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Модель</p>
+                      <p className="font-medium">{selectedDrone.model}</p>
                     </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Shield className="w-5 h-5 text-primary mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Серийный номер</p>
+                      <p className="font-medium">{selectedDrone.serialNumber}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Compass className="w-5 h-5 text-primary mr-2" />
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Координаты</p>
                       <p className="font-medium">
-                        {selectedDrone.location.latitude.toFixed(6)}, {selectedDrone.location.longitude.toFixed(6)}
+                        {selectedDrone.location?.latitude.toFixed(6)}, {selectedDrone.location?.longitude.toFixed(6)}
                       </p>
                     </div>
-                  </>
-                )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center">
+                        <Battery className="w-5 h-5 text-primary mr-2" />
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Заряд батареи</span>
+                      </div>
+                      <span className="font-medium">{selectedDrone.batteryLevel}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${
+                          selectedDrone.batteryLevel > 70 ? 'bg-success' :
+                          selectedDrone.batteryLevel > 30 ? 'bg-warning' : 'bg-error'
+                        }`}
+                        style={{ width: `${selectedDrone.batteryLevel}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center">
+                        <Wifi className="w-5 h-5 text-primary mr-2" />
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Сигнал</span>
+                      </div>
+                      <span className="font-medium">92%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full bg-success"
+                        style={{ width: '92%' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center">
+                      <Thermometer className="w-5 h-5 text-primary mr-2" />
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Высота</p>
+                        <p className="font-medium">{selectedDrone.location?.altitude} м</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-6">
-              <p className="text-gray-500 dark:text-gray-400">Выберите дрон для просмотра информации</p>
+              <Plane className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">
+                Выберите дрон для просмотра информации
+              </p>
             </div>
           )}
         </div>
