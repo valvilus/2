@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { PlusCircle, Filter, Search, MoreVertical, Plane, Edit, Trash2, Zap, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { PlusCircle, Filter, Search, MoreVertical, Plane, Edit, Trash2, Zap, X, Camera, Upload } from 'lucide-react';
 import { Drone } from '../../types';
 
-// Мок-данные для демонстрации
 const mockDrones: Drone[] = [
   {
     id: '1',
@@ -15,6 +14,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 6000,
     batteryLevel: 78,
     status: 'active',
+    imageUrl: '',
     createdAt: new Date(2024, 1, 15),
     updatedAt: new Date(2024, 1, 15),
   },
@@ -29,6 +29,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 5000,
     batteryLevel: 45,
     status: 'active',
+    imageUrl: '',
     createdAt: new Date(2024, 2, 20),
     updatedAt: new Date(2024, 2, 20),
   },
@@ -43,6 +44,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 4000,
     batteryLevel: 92,
     status: 'inactive',
+    imageUrl: '',
     createdAt: new Date(2024, 3, 5),
     updatedAt: new Date(2024, 3, 5),
   },
@@ -57,6 +59,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 7000,
     batteryLevel: 30,
     status: 'maintenance',
+    imageUrl: '',
     createdAt: new Date(2023, 11, 10),
     updatedAt: new Date(2023, 11, 10),
   },
@@ -71,6 +74,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 4500,
     batteryLevel: 82,
     status: 'active',
+    imageUrl: '',
     createdAt: new Date(2024, 4, 12),
     updatedAt: new Date(2024, 4, 12),
   },
@@ -82,6 +86,7 @@ const DroneModal: React.FC<{
   drone: Drone | null;
   onSave: (drone: Partial<Drone>) => void;
 }> = ({ isOpen, onClose, drone, onSave }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: drone?.name || '',
     model: drone?.model || '',
@@ -90,8 +95,23 @@ const DroneModal: React.FC<{
     maxSpeed: drone?.maxSpeed || 0,
     maxFlightTime: drone?.maxFlightTime || 0,
     maxAltitude: drone?.maxAltitude || 0,
-    status: drone?.status || 'inactive'
+    status: drone?.status || 'inactive',
+    imageUrl: drone?.imageUrl || ''
   });
+  const [previewUrl, setPreviewUrl] = useState(drone?.imageUrl || '');
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setPreviewUrl(result);
+        setFormData(prev => ({ ...prev, imageUrl: result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +127,6 @@ const DroneModal: React.FC<{
         <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
         
         <div className="relative w-full max-w-2xl rounded-lg bg-white dark:bg-gray-800 shadow-xl transform transition-all">
-          {/* Заголовок */}
           <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
               {drone ? 'Редактирование дрона' : 'Добавление нового дрона'}
@@ -120,12 +139,35 @@ const DroneModal: React.FC<{
             </button>
           </div>
 
-          {/* Форма */}
           <form onSubmit={handleSubmit} className="p-6">
             <div className="grid grid-cols-1 gap-6">
               <div className="flex items-center space-x-4">
-                <div className="h-20 w-20 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Plane className="h-10 w-10 text-primary" />
+                <div className="relative">
+                  <div className="h-20 w-20 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Drone"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Plane className="h-10 w-10 text-primary" />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 rounded-full bg-primary p-1 text-white hover:bg-primary-dark"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
                 </div>
                 <div className="flex-grow">
                   <div>
@@ -241,7 +283,6 @@ const DroneModal: React.FC<{
               </div>
             </div>
 
-            {/* Кнопки действий */}
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 type="button"
@@ -271,7 +312,6 @@ const DronesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDrone, setCurrentDrone] = useState<Drone | null>(null);
 
-  // Фильтрация дронов
   const filteredDrones = drones.filter(drone => {
     const matchesSearch = 
       drone.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -283,7 +323,6 @@ const DronesPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Функция для отображения статуса дрона
   const renderStatus = (status: string) => {
     switch (status) {
       case 'active':
@@ -299,34 +338,28 @@ const DronesPage: React.FC = () => {
     }
   };
 
-  // Функция для редактирования дрона
   const handleEdit = (drone: Drone) => {
     setCurrentDrone(drone);
     setIsModalOpen(true);
   };
 
-  // Функция для удаления дрона
   const handleDelete = (id: string) => {
     if (confirm('Вы уверены, что хотите удалить этот дрон?')) {
       setDrones(drones.filter(drone => drone.id !== id));
     }
   };
 
-  // Функция для добавления нового дрона
   const handleAddDrone = () => {
     setCurrentDrone(null);
     setIsModalOpen(true);
   };
 
-  // Функция для сохранения дрона
   const handleSaveDrone = (droneData: Partial<Drone>) => {
     if (currentDrone) {
-      // Обновление существующего дрона
       setDrones(drones.map(drone => 
         drone.id === currentDrone.id ? { ...drone, ...droneData } : drone
       ));
     } else {
-      // Добавление нового дрона
       const newDrone: Drone = {
         id: Math.random().toString(36).substr(2, 9),
         ...droneData as Omit<Drone, 'id'>,
@@ -350,7 +383,6 @@ const DronesPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Панель фильтров и поиска */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-grow">
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -379,7 +411,6 @@ const DronesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Таблица дронов */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -414,7 +445,15 @@ const DronesPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Plane className="h-5 w-5 text-primary" />
+                        {drone.imageUrl ? (
+                          <img
+                            src={drone.imageUrl}
+                            alt={drone.name}
+                            className="h-full w-full object-cover rounded-full"
+                          />
+                        ) : (
+                          <Plane className="h-5 w-5 text-primary" />
+                        )}
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">{drone.name}</div>
@@ -483,7 +522,6 @@ const DronesPage: React.FC = () => {
         )}
       </div>
 
-      {/* Модальное окно для добавления/редактирования дрона */}
       <DroneModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
