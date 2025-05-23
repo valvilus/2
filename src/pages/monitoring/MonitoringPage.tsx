@@ -1,9 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Circle, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation } from 'lucide-react';
-import { NoFlyZone } from '../../types';
+import { MapContainer, TileLayer, Circle, Popup, useMap, useMapEvents, Marker, Polyline } from 'react-leaflet';
+import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation, Plane, Battery } from 'lucide-react';
+import { NoFlyZone, Drone } from '../../types';
+import { useNotifications } from '../../context/NotificationsContext';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// Mock data
+const mockDrones: Drone[] = [
+  {
+    id: '1',
+    name: 'Drone 1',
+    serialNumber: 'DJI-001',
+    model: 'Mavic Air 2',
+    status: 'active',
+    batteryLevel: 85,
+    location: {
+      latitude: 51.1694,
+      longitude: 71.4491,
+      altitude: 100
+    }
+  },
+  {
+    id: '2',
+    name: 'Drone 2',
+    serialNumber: 'DJI-002',
+    model: 'Mavic 3',
+    status: 'active',
+    batteryLevel: 92,
+    location: {
+      latitude: 51.1724,
+      longitude: 71.4461,
+      altitude: 120
+    }
+  }
+];
+
+const mockNoFlyZones: NoFlyZone[] = [
+  {
+    id: '1',
+    name: 'Аэропорт',
+    type: 'permanent',
+    center: {
+      latitude: 51.1694,
+      longitude: 71.4491
+    },
+    radius: 5000,
+    color: '#ef4444'
+  },
+  {
+    id: '2',
+    name: 'Стадион',
+    type: 'temporary',
+    center: {
+      latitude: 51.1724,
+      longitude: 71.4461
+    },
+    radius: 2000,
+    color: '#f97316'
+  }
+];
+
+const mockFlightHistory: [number, number][] = [
+  [51.1694, 71.4491],
+  [51.1724, 71.4461],
+  [51.1754, 71.4431]
+];
 
 // Create custom drone icon with pulsing effect
 const createDroneIcon = (status: string, batteryLevel: number) => {
