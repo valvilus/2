@@ -6,16 +6,17 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Drone, FlightTelemetry, WeatherData } from '../../types';
 
-// Исправление проблемы с маркерами Leaflet в React
-// Создаем кастомные иконки для дронов
-const droneIcon = new L.Icon({
-  iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// Create custom drone icon
+const createDroneIcon = (imageUrl?: string) => {
+  return new L.Icon({
+    iconUrl: imageUrl || 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon.png',
+    shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+};
 
 // Мок-данные для демонстрации
 const mockDrones: Drone[] = [
@@ -30,6 +31,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 6000,
     batteryLevel: 78,
     status: 'in-flight',
+    imageUrl: '',
     location: {
       latitude: 51.1694,
       longitude: 71.4491,
@@ -50,6 +52,7 @@ const mockDrones: Drone[] = [
     maxAltitude: 5000,
     batteryLevel: 45,
     status: 'in-flight',
+    imageUrl: '',
     location: {
       latitude: 51.1605,
       longitude: 71.4704,
@@ -307,7 +310,7 @@ const MonitoringPage: React.FC = () => {
                   <Marker
                     key={drone.id}
                     position={[drone.location.latitude, drone.location.longitude]}
-                    icon={droneIcon}
+                    icon={createDroneIcon(drone.imageUrl)}
                   >
                     <Popup>
                       <div>
