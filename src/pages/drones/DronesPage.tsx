@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Filter, Search, MoreVertical, Plane, Edit, Trash2, Zap } from 'lucide-react';
+import { PlusCircle, Filter, Search, MoreVertical, Plane, Edit, Trash2, Zap, X } from 'lucide-react';
 import { Drone } from '../../types';
 
 // Мок-данные для демонстрации
@@ -76,6 +76,194 @@ const mockDrones: Drone[] = [
   },
 ];
 
+const DroneModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  drone: Drone | null;
+  onSave: (drone: Partial<Drone>) => void;
+}> = ({ isOpen, onClose, drone, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: drone?.name || '',
+    model: drone?.model || '',
+    serialNumber: drone?.serialNumber || '',
+    weight: drone?.weight || 0,
+    maxSpeed: drone?.maxSpeed || 0,
+    maxFlightTime: drone?.maxFlightTime || 0,
+    maxAltitude: drone?.maxAltitude || 0,
+    status: drone?.status || 'inactive'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
+        
+        <div className="relative w-full max-w-2xl rounded-lg bg-white dark:bg-gray-800 shadow-xl transform transition-all">
+          {/* Заголовок */}
+          <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {drone ? 'Редактирование дрона' : 'Добавление нового дрона'}
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Форма */}
+          <form onSubmit={handleSubmit} className="p-6">
+            <div className="grid grid-cols-1 gap-6">
+              <div className="flex items-center space-x-4">
+                <div className="h-20 w-20 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Plane className="h-10 w-10 text-primary" />
+                </div>
+                <div className="flex-grow">
+                  <div>
+                    <label htmlFor="name" className="label">Название дрона</label>
+                    <input
+                      type="text"
+                      id="name"
+                      className="input"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="DJI Mavic 3"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="model" className="label">Модель</label>
+                  <input
+                    type="text"
+                    id="model"
+                    className="input"
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    placeholder="Mavic 3"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="serialNumber" className="label">Серийный номер</label>
+                  <input
+                    type="text"
+                    id="serialNumber"
+                    className="input"
+                    value={formData.serialNumber}
+                    onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                    placeholder="MAV3872341"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="weight" className="label">Вес (г)</label>
+                  <input
+                    type="number"
+                    id="weight"
+                    className="input"
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: parseInt(e.target.value) })}
+                    placeholder="895"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="maxSpeed" className="label">Макс. скорость (км/ч)</label>
+                  <input
+                    type="number"
+                    id="maxSpeed"
+                    className="input"
+                    value={formData.maxSpeed}
+                    onChange={(e) => setFormData({ ...formData, maxSpeed: parseInt(e.target.value) })}
+                    placeholder="68"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="maxFlightTime" className="label">Макс. время полета (мин)</label>
+                  <input
+                    type="number"
+                    id="maxFlightTime"
+                    className="input"
+                    value={formData.maxFlightTime}
+                    onChange={(e) => setFormData({ ...formData, maxFlightTime: parseInt(e.target.value) })}
+                    placeholder="46"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="maxAltitude" className="label">Макс. высота (м)</label>
+                  <input
+                    type="number"
+                    id="maxAltitude"
+                    className="input"
+                    value={formData.maxAltitude}
+                    onChange={(e) => setFormData({ ...formData, maxAltitude: parseInt(e.target.value) })}
+                    placeholder="6000"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="status" className="label">Статус</label>
+                <select
+                  id="status"
+                  className="input"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Drone['status'] })}
+                  required
+                >
+                  <option value="active">Активный</option>
+                  <option value="inactive">Неактивный</option>
+                  <option value="maintenance">На техобслуживании</option>
+                  <option value="in-flight">В полете</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Кнопки действий */}
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn btn-outline"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+              >
+                {drone ? 'Сохранить изменения' : 'Добавить дрон'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DronesPage: React.FC = () => {
   const [drones, setDrones] = useState<Drone[]>(mockDrones);
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,6 +316,25 @@ const DronesPage: React.FC = () => {
   const handleAddDrone = () => {
     setCurrentDrone(null);
     setIsModalOpen(true);
+  };
+
+  // Функция для сохранения дрона
+  const handleSaveDrone = (droneData: Partial<Drone>) => {
+    if (currentDrone) {
+      // Обновление существующего дрона
+      setDrones(drones.map(drone => 
+        drone.id === currentDrone.id ? { ...drone, ...droneData } : drone
+      ));
+    } else {
+      // Добавление нового дрона
+      const newDrone: Drone = {
+        id: Math.random().toString(36).substr(2, 9),
+        ...droneData as Omit<Drone, 'id'>,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Drone;
+      setDrones([...drones, newDrone]);
+    }
   };
 
   return (
@@ -277,136 +484,12 @@ const DronesPage: React.FC = () => {
       </div>
 
       {/* Модальное окно для добавления/редактирования дрона */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 dark:bg-gray-900 opacity-75"></div>
-            </div>
-
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div className="inline-block align-bottom glass rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                      {currentDrone ? 'Редактировать дрон' : 'Добавить новый дрон'}
-                    </h3>
-                    <div className="mt-4 space-y-4">
-                      {/* Здесь форма для добавления/редактирования дрона */}
-                      <div>
-                        <label htmlFor="name" className="label">Название</label>
-                        <input
-                          type="text"
-                          id="name"
-                          className="input"
-                          defaultValue={currentDrone?.name}
-                          placeholder="DJI Mavic 3"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="model" className="label">Модель</label>
-                          <input
-                            type="text"
-                            id="model"
-                            className="input"
-                            defaultValue={currentDrone?.model}
-                            placeholder="Mavic 3"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="serialNumber" className="label">Серийный номер</label>
-                          <input
-                            type="text"
-                            id="serialNumber"
-                            className="input"
-                            defaultValue={currentDrone?.serialNumber}
-                            placeholder="MAV3872341"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="weight" className="label">Вес (г)</label>
-                          <input
-                            type="number"
-                            id="weight"
-                            className="input"
-                            defaultValue={currentDrone?.weight}
-                            placeholder="895"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="maxSpeed" className="label">Макс. скорость (км/ч)</label>
-                          <input
-                            type="number"
-                            id="maxSpeed"
-                            className="input"
-                            defaultValue={currentDrone?.maxSpeed}
-                            placeholder="68"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="maxFlightTime" className="label">Макс. время полета (мин)</label>
-                          <input
-                            type="number"
-                            id="maxFlightTime"
-                            className="input"
-                            defaultValue={currentDrone?.maxFlightTime}
-                            placeholder="46"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="maxAltitude" className="label">Макс. высота (м)</label>
-                          <input
-                            type="number"
-                            id="maxAltitude"
-                            className="input"
-                            defaultValue={currentDrone?.maxAltitude}
-                            placeholder="6000"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label htmlFor="status" className="label">Статус</label>
-                        <select
-                          id="status"
-                          className="input"
-                          defaultValue={currentDrone?.status}
-                        >
-                          <option value="active">Активный</option>
-                          <option value="inactive">Неактивный</option>
-                          <option value="maintenance">На техобслуживании</option>
-                          <option value="in-flight">В полете</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  className="btn btn-primary w-full sm:w-auto sm:ml-3"
-                >
-                  {currentDrone ? 'Сохранить изменения' : 'Добавить дрон'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline w-full sm:w-auto mt-3 sm:mt-0"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Отмена
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DroneModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        drone={currentDrone}
+        onSave={handleSaveDrone}
+      />
     </div>
   );
 };
