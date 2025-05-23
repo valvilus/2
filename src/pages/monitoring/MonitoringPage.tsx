@@ -1,121 +1,152 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-leaflet';
-import { useNotifications } from '../../context/NotificationsContext';
-import { Plane, Layers, Info, AlertTriangle, Wifi, Battery, Wind, Thermometer, Navigation, CloudRain } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Circle, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation } from 'lucide-react';
+import { NoFlyZone } from '../../types';
 import L from 'leaflet';
-import { Drone, FlightTelemetry, WeatherData } from '../../types';
+import 'leaflet/dist/leaflet.css';
 
-// Create custom drone icon
-const createDroneIcon = (imageUrl?: string) => {
-  return new L.Icon({
-    iconUrl: imageUrl || 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon.png',
-    shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+// Create custom drone icon with pulsing effect
+const createDroneIcon = (status: string, batteryLevel: number) => {
+  const color = batteryLevel > 20 ? '#22c55e' : '#ef4444';
+  
+  const svg = `
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 8L8 4L4 8L8 12L12 8ZM12 8L16 4L20 8L16 12L12 8ZM12 16L8 12L4 16L8 20L12 16ZM12 16L16 12L20 16L16 20L12 16Z" stroke="${color}" stroke-width="2"/>
+    </svg>
+  `;
+
+  const pulsingIcon = L.divIcon({
+    html: `
+      <div class="drone-icon" style="
+        width: 32px;
+        height: 32px;
+        animation: pulse 1.5s ease-in-out infinite;
+        background-image: url('data:image/svg+xml;base64,${btoa(svg)}');
+        background-size: contain;
+      ">
+      </div>
+    `,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
   });
+
+  return pulsingIcon;
 };
 
-// Мок-данные для демонстрации
-const mockDrones: Drone[] = [
-  {
-    id: '1',
-    name: 'DJI Mavic 3',
-    model: 'Mavic 3',
-    serialNumber: 'MAV3872341',
-    weight: 895,
-    maxSpeed: 68,
-    maxFlightTime: 46,
-    maxAltitude: 6000,
-    batteryLevel: 78,
-    status: 'in-flight',
-    imageUrl: '',
-    location: {
-      latitude: 51.1694,
-      longitude: 71.4491,
-      altitude: 120,
-    },
-    pilotId: '1',
-    createdAt: new Date(2024, 1, 15),
-    updatedAt: new Date(2024, 1, 15),
-  },
-  {
-    id: '2',
-    name: 'DJI Air 2S',
-    model: 'Air 2S',
-    serialNumber: 'AIR2S52234',
-    weight: 595,
-    maxSpeed: 68,
-    maxFlightTime: 31,
-    maxAltitude: 5000,
-    batteryLevel: 45,
-    status: 'in-flight',
-    imageUrl: '',
-    location: {
-      latitude: 51.1605,
-      longitude: 71.4704,
-      altitude: 85,
-    },
-    pilotId: '2',
-    createdAt: new Date(2024, 2, 20),
-    updatedAt: new Date(2024, 2, 20),
-  },
-];
+// Map coordinates component
+const MapCoordinates: React.FC = () => {
+  const [coords, setCoords] = useState({ lat: 0, lng: 0 });
+  
+  useMapEvents({
+    mousemove: (e) => {
+      setCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+    }
+  });
 
-// Мок-данные для запретных зон
-const mockNoFlyZones = [
-  {
-    id: '1',
-    name: 'Аэропорт Астаны',
-    type: 'permanent',
-    center: { latitude: 51.0222, longitude: 71.4669 },
-    radius: 5000, // метры
-    color: '#ff4444',
-  },
-  {
-    id: '2',
-    name: 'Акорда',
-    type: 'permanent',
-    center: { latitude: 51.1282, longitude: 71.4309 },
-    radius: 1000, // метры
-    color: '#ff8800',
-  },
-];
-
-// Мок-данные для погоды
-const mockWeather: WeatherData = {
-  location: {
-    latitude: 51.1694,
-    longitude: 71.4491,
-    name: 'Астана',
-  },
-  timestamp: new Date(),
-  temperature: 18,
-  humidity: 65,
-  windSpeed: 12,
-  windDirection: 225,
-  precipitation: 0,
-  visibility: 10000,
-  pressure: 1013,
-  cloudCoverage: 30,
-  weatherCondition: 'partly-cloudy',
+  return (
+    <div className="absolute bottom-2 left-2 bg-white dark:bg-gray-800 px-2 py-1 rounded-md text-sm z-[1000]">
+      {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+    </div>
+  );
 };
 
-// Мок-данные для истории полета (координаты)
-const mockFlightHistory = [
-  [51.1694, 71.4491],
-  [51.1680, 71.4480],
-  [51.1670, 71.4470],
-  [51.1660, 71.4460],
-  [51.1650, 71.4450],
-  [51.1640, 71.4460],
-  [51.1630, 71.4470],
-  [51.1620, 71.4480],
-  [51.1610, 71.4490],
-  [51.1605, 71.4704],
-];
+// Map legend component
+const MapLegend: React.FC = () => {
+  return (
+    <div className="absolute right-2 bottom-2 bg-white dark:bg-gray-800 p-3 rounded-md shadow-lg z-[1000]">
+      <h4 className="font-medium mb-2">Легенда</h4>
+      <div className="space-y-2">
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-success/20 border-2 border-success rounded-full mr-2" />
+          <span className="text-sm">Активный дрон</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-error/20 border-2 border-error rounded-full mr-2" />
+          <span className="text-sm">Низкий заряд</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-red-500/20 border-2 border-red-500 mr-2" />
+          <span className="text-sm">Запретная зона</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Map layers control
+const LayerControl: React.FC<{
+  mapLayers: {
+    noFlyZones: boolean;
+    weather: boolean;
+    flightPaths: boolean;
+  };
+  toggleMapLayer: (layer: string) => void;
+}> = ({ mapLayers, toggleMapLayer }) => {
+  return (
+    <div className="absolute top-2 right-2 space-y-2 z-[1000]">
+      <button
+        onClick={() => toggleMapLayer('noFlyZones')}
+        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
+          mapLayers.noFlyZones
+            ? 'bg-primary text-white shadow-lg shadow-primary/50'
+            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <AlertTriangle className="w-4 h-4 mr-2" />
+        <span className="text-sm">Запретные зоны</span>
+      </button>
+      
+      <button
+        onClick={() => toggleMapLayer('weather')}
+        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
+          mapLayers.weather
+            ? 'bg-primary text-white shadow-lg shadow-primary/50'
+            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <CloudRain className="w-4 h-4 mr-2" />
+        <span className="text-sm">Погода</span>
+      </button>
+      
+      <button
+        onClick={() => toggleMapLayer('flightPaths')}
+        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
+          mapLayers.flightPaths
+            ? 'bg-primary text-white shadow-lg shadow-primary/50'
+            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <Navigation className="w-4 h-4 mr-2" />
+        <span className="text-sm">Траектория</span>
+      </button>
+    </div>
+  );
+};
+
+// Add styles to head
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  .drone-icon {
+    transition: all 0.3s ease;
+  }
+`;
+document.head.appendChild(style);
 
 const MonitoringPage: React.FC = () => {
   const [activeDrones, setActiveDrones] = useState<Drone[]>(mockDrones);
@@ -127,10 +158,8 @@ const MonitoringPage: React.FC = () => {
   });
   const { addNotification } = useNotifications();
 
-  // Имитация получения обновлений телеметрии
   useEffect(() => {
     const interval = setInterval(() => {
-      // Имитация движения дрона
       setActiveDrones(prev => 
         prev.map(drone => {
           if (drone.location) {
@@ -140,10 +169,8 @@ const MonitoringPage: React.FC = () => {
               altitude: drone.location.altitude + (Math.random() - 0.5) * 5,
             };
             
-            // Имитация изменения уровня батареи
             const newBatteryLevel = Math.max(0, (drone.batteryLevel || 100) - 0.1);
             
-            // Имитация возникновения предупреждения
             if (Math.random() < 0.05) {
               const warnings = [
                 'Высокая скорость ветра',
@@ -173,12 +200,10 @@ const MonitoringPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [addNotification]);
 
-  // Обработчик выбора дрона для просмотра детальной информации
   const handleDroneSelect = (drone: Drone) => {
     setSelectedDrone(drone);
   };
 
-  // Переключение слоев карты
   const toggleMapLayer = (layer: keyof typeof mapLayers) => {
     setMapLayers(prev => ({
       ...prev,
@@ -215,8 +240,7 @@ const MonitoringPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Список активных дронов */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="glass-card p-4 lg:col-span-1 max-h-[calc(100vh-13rem)] overflow-y-auto">
           <h2 className="text-lg font-semibold mb-4">Активные дроны</h2>
           
@@ -266,136 +290,70 @@ const MonitoringPage: React.FC = () => {
           )}
         </div>
 
-        {/* Карта и детали дрона */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Карта */}
-          <div className="glass-card overflow-hidden" style={{ height: "500px" }}>
-            <MapContainer 
-              center={[51.1694, 71.4491]} 
-              zoom={13} 
-              style={{ height: "100%", width: "100%" }}
-              zoomControl={false}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              />
-              
-              {/* Запретные зоны */}
-              {mapLayers.noFlyZones && mockNoFlyZones.map(zone => (
-                <Circle
-                  key={zone.id}
-                  center={[zone.center.latitude, zone.center.longitude]}
-                  radius={zone.radius}
-                  pathOptions={{ 
-                    color: zone.color,
-                    fillColor: zone.color,
-                    fillOpacity: 0.2
-                  }}
+        <div className="glass-card overflow-hidden lg:col-span-2" style={{ height: "calc(100vh - 13rem)" }}>
+          <MapContainer 
+            center={[51.1694, 71.4491]} 
+            zoom={12} 
+            style={{ height: "100%", width: "100%" }}
+            zoomControl={false}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            />
+            
+            <LayerControl mapLayers={mapLayers} toggleMapLayer={toggleMapLayer} />
+            <MapCoordinates />
+            <MapLegend />
+            
+            {mapLayers.noFlyZones && mockNoFlyZones.map(zone => (
+              <Circle
+                key={zone.id}
+                center={[zone.center.latitude, zone.center.longitude]}
+                radius={zone.radius}
+                pathOptions={{ 
+                  color: zone.color,
+                  fillColor: zone.color,
+                  fillOpacity: 0.2
+                }}
+              >
+                <Popup>
+                  <div>
+                    <h3 className="font-bold">{zone.name}</h3>
+                    <p>Запретная зона</p>
+                    <p>Тип: {zone.type === 'permanent' ? 'Постоянная' : 'Временная'}</p>
+                    <p>Радиус: {zone.radius} м</p>
+                  </div>
+                </Popup>
+              </Circle>
+            ))}
+            
+            {activeDrones.map(drone => (
+              drone.location && (
+                <Marker
+                  key={drone.id}
+                  position={[drone.location.latitude, drone.location.longitude]}
+                  icon={createDroneIcon(drone.status, drone.batteryLevel || 0)}
                 >
                   <Popup>
                     <div>
-                      <h3 className="font-bold">{zone.name}</h3>
-                      <p>Запретная зона</p>
-                      <p>Тип: {zone.type === 'permanent' ? 'Постоянная' : 'Временная'}</p>
-                      <p>Радиус: {zone.radius} м</p>
+                      <h3 className="font-bold">{drone.name}</h3>
+                      <p>Модель: {drone.model}</p>
+                      <p>Высота: {Math.round(drone.location.altitude)} м</p>
+                      <p>Батарея: {drone.batteryLevel}%</p>
                     </div>
                   </Popup>
-                </Circle>
-              ))}
-              
-              {/* Активные дроны */}
-              {activeDrones.map(drone => (
-                drone.location && (
-                  <Marker
-                    key={drone.id}
-                    position={[drone.location.latitude, drone.location.longitude]}
-                    icon={createDroneIcon(drone.imageUrl)}
-                  >
-                    <Popup>
-                      <div>
-                        <h3 className="font-bold">{drone.name}</h3>
-                        <p>Модель: {drone.model}</p>
-                        <p>Высота: {Math.round(drone.location.altitude)} м</p>
-                        <p>Батарея: {drone.batteryLevel}%</p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              ))}
-              
-              {/* История полета */}
-              {mapLayers.flightPaths && (
-                <Polyline
-                  positions={mockFlightHistory as [number, number][]}
-                  pathOptions={{ color: 'blue', weight: 3, opacity: 0.7 }}
-                />
-              )}
-            </MapContainer>
-          </div>
-
-          {/* Информация о выбранном дроне */}
-          {selectedDrone ? (
-            <div className="glass-card p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedDrone.name}</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Серийный номер: {selectedDrone.serialNumber}</p>
-                </div>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success/20 text-success">
-                  В полете
-                </span>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="glass-card p-3 flex flex-col items-center">
-                  <Battery className="w-6 h-6 text-primary mb-1" />
-                  <span className="text-sm font-medium">{selectedDrone.batteryLevel}%</span>
-                  <span className="text-xs text-gray-500">Батарея</span>
-                </div>
-                <div className="glass-card p-3 flex flex-col items-center">
-                  <Navigation className="w-6 h-6 text-primary mb-1" />
-                  <span className="text-sm font-medium">{selectedDrone.location?.altitude} м</span>
-                  <span className="text-xs text-gray-500">Высота</span>
-                </div>
-                <div className="glass-card p-3 flex flex-col items-center">
-                  <Wifi className="w-6 h-6 text-primary mb-1" />
-                  <span className="text-sm font-medium">97%</span>
-                  <span className="text-xs text-gray-500">Сигнал</span>
-                </div>
-                <div className="glass-card p-3 flex flex-col items-center">
-                  <Wind className="w-6 h-6 text-primary mb-1" />
-                  <span className="text-sm font-medium">{mockWeather.windSpeed} км/ч</span>
-                  <span className="text-xs text-gray-500">Ветер</span>
-                </div>
-              </div>
-
-              {/* Погодные условия */}
-              {mapLayers.weather && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium mb-2 text-gray-900 dark:text-white">Погодные условия</h3>
-                  <div className="glass-card p-3">
-                    <div className="flex items-center">
-                      <CloudRain className="w-10 h-10 text-primary" />
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {mockWeather.temperature}°C, {mockWeather.weatherCondition === 'partly-cloudy' ? 'Переменная облачность' : 'Ясно'}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Влажность: {mockWeather.humidity}%, Видимость: {mockWeather.visibility / 1000} км
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="glass-card p-6 text-center">
-              <Info className="w-12 h-12 text-primary/50 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Выберите дрон для просмотра детальной информации</h3>
-            </div>
-          )}
+                </Marker>
+              )
+            ))}
+            
+            {mapLayers.flightPaths && (
+              <Polyline
+                positions={mockFlightHistory as [number, number][]}
+                pathOptions={{ color: 'blue', weight: 3, opacity: 0.7 }}
+              />
+            )}
+          </MapContainer>
         </div>
       </div>
     </div>
