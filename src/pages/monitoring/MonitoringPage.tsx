@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Circle, Popup, useMap, useMapEvents, Marker, Polyline } from 'react-leaflet';
-import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation, Plane, Battery } from 'lucide-react';
+import { AlertTriangle, PlusCircle, Search, Filter, MapPin, Clock, Shield, Layers, CloudRain, Navigation, Plane, Battery, X } from 'lucide-react';
 import { NoFlyZone, Drone } from '../../types';
 import { useNotifications } from '../../context/NotificationsContext';
+import WeatherWidget from '../../components/weather/WeatherWidget';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -114,10 +115,17 @@ const MapCoordinates: React.FC = () => {
 };
 
 // Map legend component
-const MapLegend: React.FC = () => {
+const MapLegend: React.FC<{ isVisible: boolean; onClose: () => void }> = ({ isVisible, onClose }) => {
+  if (!isVisible) return null;
+
   return (
     <div className="absolute right-2 bottom-2 bg-white dark:bg-gray-800 p-3 rounded-md shadow-lg z-[1000]">
-      <h4 className="font-medium mb-2">Легенда</h4>
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="font-medium">Легенда</h4>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
       <div className="space-y-2">
         <div className="flex items-center">
           <div className="w-4 h-4 bg-success/20 border-2 border-success rounded-full mr-2" />
@@ -136,88 +144,15 @@ const MapLegend: React.FC = () => {
   );
 };
 
-// Map layers control
-const LayerControl: React.FC<{
-  mapLayers: {
-    noFlyZones: boolean;
-    weather: boolean;
-    flightPaths: boolean;
-  };
-  toggleMapLayer: (layer: string) => void;
-}> = ({ mapLayers, toggleMapLayer }) => {
-  return (
-    <div className="absolute top-2 right-2 space-y-2 z-[1000]">
-      <button
-        onClick={() => toggleMapLayer('noFlyZones')}
-        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
-          mapLayers.noFlyZones
-            ? 'bg-primary text-white shadow-lg shadow-primary/50'
-            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-        }`}
-      >
-        <AlertTriangle className="w-4 h-4 mr-2" />
-        <span className="text-sm">Запретные зоны</span>
-      </button>
-      
-      <button
-        onClick={() => toggleMapLayer('weather')}
-        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
-          mapLayers.weather
-            ? 'bg-primary text-white shadow-lg shadow-primary/50'
-            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-        }`}
-      >
-        <CloudRain className="w-4 h-4 mr-2" />
-        <span className="text-sm">Погода</span>
-      </button>
-      
-      <button
-        onClick={() => toggleMapLayer('flightPaths')}
-        className={`w-full flex items-center px-4 py-2 rounded-lg transition-all ${
-          mapLayers.flightPaths
-            ? 'bg-primary text-white shadow-lg shadow-primary/50'
-            : 'bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300'
-        }`}
-      >
-        <Navigation className="w-4 h-4 mr-2" />
-        <span className="text-sm">Траектория</span>
-      </button>
-    </div>
-  );
-};
-
-// Add styles to head
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes pulse {
-    0% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.2);
-      opacity: 0.8;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-  
-  .drone-icon {
-    transition: all 0.3s ease;
-  }
-`;
-document.head.appendChild(style);
-
 const MonitoringPage: React.FC = () => {
   const [activeDrones, setActiveDrones] = useState<Drone[]>(mockDrones);
   const [selectedDrone, setSelectedDrone] = useState<Drone | null>(null);
   const [mapLayers, setMapLayers] = useState({
     noFlyZones: true,
     weather: true,
-    flightPaths: true,
+    flightPaths: true
   });
+  const [isLegendVisible, setIsLegendVisible] = useState(true);
   const { addNotification } = useNotifications();
 
   useEffect(() => {
@@ -279,25 +214,11 @@ const MonitoringPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Мониторинг полетов</h1>
         <div className="flex space-x-2">
           <button
-            onClick={() => toggleMapLayer('noFlyZones')}
-            className={`btn ${mapLayers.noFlyZones ? 'btn-primary' : 'btn-outline'} flex items-center text-sm py-1 px-3`}
+            onClick={() => setIsLegendVisible(!isLegendVisible)}
+            className="btn btn-outline flex items-center text-sm py-1 px-3"
           >
-            <AlertTriangle className="w-4 h-4 mr-1" />
-            Запретные зоны
-          </button>
-          <button
-            onClick={() => toggleMapLayer('weather')}
-            className={`btn ${mapLayers.weather ? 'btn-primary' : 'btn-outline'} flex items-center text-sm py-1 px-3`}
-          >
-            <CloudRain className="w-4 h-4 mr-1" />
-            Погода
-          </button>
-          <button
-            onClick={() => toggleMapLayer('flightPaths')}
-            className={`btn ${mapLayers.flightPaths ? 'btn-primary' : 'btn-outline'} flex items-center text-sm py-1 px-3`}
-          >
-            <Navigation className="w-4 h-4 mr-1" />
-            Траектории
+            <Layers className="w-4 h-4 mr-1" />
+            Легенда
           </button>
         </div>
       </div>
@@ -364,9 +285,8 @@ const MonitoringPage: React.FC = () => {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
             
-            <LayerControl mapLayers={mapLayers} toggleMapLayer={toggleMapLayer} />
             <MapCoordinates />
-            <MapLegend />
+            <MapLegend isVisible={isLegendVisible} onClose={() => setIsLegendVisible(false)} />
             
             {mapLayers.noFlyZones && mockNoFlyZones.map(zone => (
               <Circle
@@ -411,11 +331,64 @@ const MonitoringPage: React.FC = () => {
             
             {mapLayers.flightPaths && (
               <Polyline
-                positions={mockFlightHistory as [number, number][]}
+                positions={mockFlightHistory}
                 pathOptions={{ color: 'blue', weight: 3, opacity: 0.7 }}
               />
             )}
           </MapContainer>
+        </div>
+      </div>
+
+      {/* Нижняя панель с информацией */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Погодный виджет */}
+        <div className="glass-card p-4">
+          <WeatherWidget latitude={51.1694} longitude={71.4491} />
+        </div>
+
+        {/* Информация о выбранном дроне */}
+        <div className="glass-card p-4">
+          {selectedDrone ? (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Информация о дроне</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Название</p>
+                  <p className="font-medium">{selectedDrone.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Модель</p>
+                  <p className="font-medium">{selectedDrone.model}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Серийный номер</p>
+                  <p className="font-medium">{selectedDrone.serialNumber}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Заряд батареи</p>
+                  <p className="font-medium">{selectedDrone.batteryLevel}%</p>
+                </div>
+                {selectedDrone.location && (
+                  <>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Высота</p>
+                      <p className="font-medium">{Math.round(selectedDrone.location.altitude)} м</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Координаты</p>
+                      <p className="font-medium">
+                        {selectedDrone.location.latitude.toFixed(6)}, {selectedDrone.location.longitude.toFixed(6)}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-gray-500 dark:text-gray-400">Выберите дрон для просмотра информации</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
